@@ -1,5 +1,5 @@
 FROM ubuntu:22.04
-LABEL maintainer "Jake Jarvis <jake@jarv.is>" \
+LABEL maintainer="Jake Jarvis <jake@jarv.is>" \
       repository="https://github.com/jakejarvis/tor-docker" \
       # https://docs.github.com/en/free-pro-team@latest/packages/managing-container-images-with-github-container-registry/connecting-a-repository-to-a-container-image#connecting-a-repository-to-a-container-image-on-the-command-line
       org.opencontainers.image.source="https://github.com/jakejarvis/tor-docker"
@@ -34,13 +34,21 @@ deb-src [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torp
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy entrypoint script
+# Copy a simple default config
+COPY torrc.default /etc/tor/torrc
+
+# Copy entrypoint script & ensure it's executable
 COPY ./entrypoint.sh /usr/local/bin/docker-entrypoint
+RUN chmod ugo+rx /usr/local/bin/docker-entrypoint
 
 # Tor data should be persisted on the host
 VOLUME /var/lib/tor
 
-# Run as non-root user
+# Make sure files are owned by the tor user
+RUN chown -R debian-tor /etc/tor \
+ && chown -R debian-tor /var/lib/tor
+
+# Run tor as a non-root user
 USER debian-tor
 
 ENTRYPOINT ["docker-entrypoint"]
