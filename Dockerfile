@@ -1,14 +1,11 @@
 FROM ubuntu:22.04
 
 LABEL maintainer="Jake Jarvis <jake@jarv.is>" \
-      repository="https://github.com/jakejarvis/tor-docker" \
+      repository="https://github.com/jakejarvis/docker-tor" \
       # https://docs.github.com/en/free-pro-team@latest/packages/managing-container-images-with-github-container-registry/connecting-a-repository-to-a-container-image#connecting-a-repository-to-a-container-image-on-the-command-line
-      org.opencontainers.image.source="https://github.com/jakejarvis/tor-docker"
+      org.opencontainers.image.source="https://github.com/jakejarvis/docker-tor"
 
-ARG TARGETPLATFORM
 ARG DEBIAN_FRONTEND=noninteractive
-# https://github.com/krallin/tini/releases
-ARG TINI_VERSION=0.19.0
 
 # All the things!
 RUN apt-get update && \
@@ -28,19 +25,9 @@ RUN apt-get update && \
         tor \
         tor-geoipdb \
         obfs4proxy \
-        iputils-ping && \
-    # Install tini: https://github.com/krallin/tini
-    if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
-      curl -s -L https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini-arm64 -o /usr/local/bin/tini; \
-    else \
-      curl -s -L https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini -o /usr/local/bin/tini; \
-    fi && \
-    chmod +x /usr/local/bin/tini && \
+        iputils-ping \
+        gosu && \
     # Tidy up
-    apt-get purge --auto-remove -y \
-        apt-transport-https \
-        lsb-release \
-        gnupg && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,18 +35,9 @@ RUN apt-get update && \
 COPY torrc.default /etc/tor/torrc
 
 # Copy entrypoint script & ensure it's executable
-COPY ./entrypoint.sh /usr/local/bin/docker-entrypoint
-RUN chmod ugo+rx /usr/local/bin/docker-entrypoint
+COPY entrypoint.sh /usr/local/bin/docker-entrypoint
 
-# Tor data should be persisted on the host
-VOLUME /var/lib/tor
+HEALTHCHECK --interval=300s --timeout=10s --start-period=30s \
+  CMD curl -sSx socks5h://127.0.0.1:9050 https://check.torproject.org/api/ip | grep -E '"IsTor"\s*:\s*true'
 
-# Make sure files are owned by the tor user
-RUN chown -R debian-tor /etc/tor && \
-    chown -R debian-tor /var/lib/tor
-
-# Run tor as a non-root user
-USER debian-tor
-
-ENTRYPOINT ["tini", "--", "docker-entrypoint"]
-CMD ["tor", "-f", "/etc/tor/torrc"]
+ENTRYPOINT ["docker-entrypoint"]

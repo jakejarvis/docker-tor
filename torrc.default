@@ -1,11 +1,11 @@
-# Exposing a proxy is unnecessary if we're running a hidden service.
-SocksPort 0
-
 # This folder contains the public and private keys of the hidden
 # service, probably provided by the host but can also be generated
 # by Tor if it's missing.
-HiddenServiceDir /var/lib/tor/hidden_service/
+HiddenServiceDir /var/lib/tor/hidden_service
 
 # Point the hidden service to a web server (in this case, the web
 # server container listening on port 80). See README.
 HiddenServicePort 80 web:80
+
+# SOCKS proxy is only used for the container's internal healthcheck.
+SocksPort 127.0.0.1:9050
